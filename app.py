@@ -1,4 +1,4 @@
-
+import json
 import os
 import re
 from typing import Any, Dict, List
@@ -7,669 +7,1376 @@ import requests
 import streamlit as st
 
 
-# -----------------------------
-# App configuration
-# -----------------------------
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+
 st.set_page_config(
-    page_title="Chef AI — Kitchen Assistant",
+    page_title="Chef AI",
     page_icon="🍳",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-XAI_URL = "https://api.x.ai/v1/responses"
-DEFAULT_MODEL = "grok-4.6"
+
+# ============================================================
+# GROQ API CONFIGURATION
+# ============================================================
+
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 
-# -----------------------------
-# Styling — Streamlit only
-# -----------------------------
+# ============================================================
+# CUSTOM CSS
+# ============================================================
+
 st.markdown(
     """
     <style>
+
+    /* Main application */
     .stApp {
-        background: #fffaf5;
+        background-color: #fffaf4;
     }
 
-    .main .block-container {
-        max-width: 1180px;
-        padding-top: 1.2rem;
-        padding-bottom: 4rem;
+    /* Main content */
+    .block-container {
+        max-width: 1200px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
     }
 
-    .hero {
-        padding: 3.2rem 1.5rem 2.8rem 1.5rem;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #fff1dc 0%, #ffe7c2 100%);
-        text-align: center;
-        margin-bottom: 1.5rem;
-        border: 1px solid #f4d6aa;
-    }
-
-    .hero h1 {
-        font-size: 3.2rem;
-        margin-bottom: .4rem;
-        color: #3c2415;
+    /* Main title */
+    .main-title {
+        font-size: 48px;
         font-weight: 800;
+        color: #3b2418;
+        margin-bottom: 5px;
     }
 
-    .hero p {
-        font-size: 1.15rem;
-        color: #704b32;
-        max-width: 700px;
-        margin: 0 auto;
+    .main-subtitle {
+        font-size: 18px;
+        color: #806b5c;
+        margin-bottom: 30px;
     }
 
-    .feature-card {
+    /* Cards */
+    .recipe-card {
         background: white;
-        border: 1px solid #f0dfce;
-        border-radius: 22px;
-        padding: 1.5rem;
-        min-height: 180px;
-        box-shadow: 0 8px 28px rgba(86, 55, 28, .07);
+        border: 1px solid #eadfd5;
+        border-radius: 18px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 18px rgba(60, 40, 25, 0.06);
     }
 
-    .feature-card h3 {
-        color: #3c2415;
-        margin-bottom: .45rem;
-    }
-
-    .feature-card p {
-        color: #76563f;
-        line-height: 1.6;
-    }
-
-    .recipe-box {
-        background: white;
-        border: 1px solid #ead9c7;
-        border-radius: 22px;
-        padding: 1.6rem;
-        margin-top: 1rem;
-        box-shadow: 0 8px 30px rgba(86, 55, 28, .06);
-    }
-
+    /* Recipe title */
     .recipe-title {
-        font-size: 2rem;
+        font-size: 36px;
         font-weight: 800;
-        color: #3c2415;
-        margin-bottom: .2rem;
+        color: #3b2418;
+        margin-bottom: 10px;
     }
 
-    .muted {
-        color: #76563f;
+    /* Section titles */
+    .section-title {
+        font-size: 25px;
+        font-weight: 750;
+        color: #4a2e20;
+        margin-top: 25px;
+        margin-bottom: 12px;
     }
 
+    /* Ingredient */
+    .ingredient-row {
+        background: #fffdf9;
+        border-bottom: 1px solid #eee4db;
+        padding: 11px 5px;
+    }
+
+    /* Instruction step */
+    .step-box {
+        background: #fff;
+        border: 1px solid #eee4db;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+    }
+
+    .step-number {
+        font-weight: 800;
+        color: #d3543f;
+    }
+
+    /* Suggestion card */
     .suggestion-card {
         background: white;
-        border: 1px solid #ead9c7;
-        border-radius: 18px;
-        padding: 1.1rem;
-        margin-bottom: .8rem;
+        border: 1px solid #eadfd5;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 15px;
     }
 
-    .missing {
-        color: #9b5b22;
+    /* Info boxes */
+    .info-box {
+        background: #fff3e7;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 10px 0;
     }
 
-    .available {
-        color: #477a3f;
-    }
-
-    .footer {
+    /* Footer */
+    .app-footer {
         text-align: center;
-        color: #8b735f;
-        padding: 2rem 0 0;
-        font-size: .9rem;
+        color: #927e70;
+        font-size: 14px;
+        padding: 30px 0 10px 0;
     }
 
-    div[data-testid="stMetric"] {
-        background: #fffdfb;
-        border: 1px solid #eee0d2;
-        padding: .7rem;
-        border-radius: 14px;
+    /* Mobile */
+    @media (max-width: 768px) {
+
+        .main-title {
+            font-size: 36px;
+        }
+
+        .main-subtitle {
+            font-size: 16px;
+        }
+
+        .recipe-title {
+            font-size: 28px;
+        }
+
+        .section-title {
+            font-size: 22px;
+        }
     }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 
-# -----------------------------
-# State
-# -----------------------------
-defaults = {
-    "page": "Home",
-    "recipe": None,
-    "suggestions": [],
-    "last_dish": "",
-    "last_ingredients": "",
-    "last_servings": 4,
-    "favorites": [],
-    "selected_suggestion": None,
-}
-for key, value in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
+# ============================================================
+# SESSION STATE
+# ============================================================
+
+if "page" not in st.session_state:
+    st.session_state.page = "Home"
+
+if "recipe" not in st.session_state:
+    st.session_state.recipe = None
+
+if "suggestions" not in st.session_state:
+    st.session_state.suggestions = []
+
+if "favorites" not in st.session_state:
+    st.session_state.favorites = []
 
 
-# -----------------------------
-# API helpers
-# -----------------------------
+# ============================================================
+# GET GROQ API KEY
+# ============================================================
+
 def get_api_key() -> str:
-    """Read the Grok/xAI key from Streamlit secrets or environment."""
+    """
+    Get the Groq API key from Streamlit Secrets.
+
+    Expected Streamlit Secret:
+
+    GROQ_API_KEY = "gsk_your_key_here"
+    """
+
     try:
-        secret_key = st.secrets.get("XAI_API_KEY", "")
+        secret_key = st.secrets.get("GROQ_API_KEY", "")
     except Exception:
         secret_key = ""
 
-    return secret_key or os.getenv("XAI_API_KEY", "")
+    if secret_key:
+        return str(secret_key).strip()
+
+    environment_key = os.getenv("GROQ_API_KEY", "")
+
+    return environment_key.strip()
 
 
-def extract_response_text(data: Dict[str, Any]) -> str:
-    """Extract text from xAI Responses API in a defensive way."""
-    if isinstance(data.get("output_text"), str) and data["output_text"].strip():
-        return data["output_text"].strip()
+# ============================================================
+# CALL GROQ
+# ============================================================
 
-    pieces: List[str] = []
-    for item in data.get("output", []) or []:
-        for content in item.get("content", []) or []:
-            text = content.get("text")
-            if isinstance(text, str):
-                pieces.append(text)
-    return "\n".join(pieces).strip()
+def call_groq(prompt: str) -> str:
 
-
-def call_grok(prompt: str) -> str:
     api_key = get_api_key()
 
     if not api_key:
         raise RuntimeError(
-            "XAI_API_KEY is not configured. Add it to Streamlit secrets or the server environment."
+            "GROQ_API_KEY is missing. "
+            "Please add your gsk_... Groq API key "
+            "to Streamlit Secrets."
         )
 
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
     payload = {
-        "model": DEFAULT_MODEL,
-        "input": [
+        "model": GROQ_MODEL,
+        "messages": [
             {
                 "role": "system",
                 "content": (
-                    "You are Chef AI, a practical and careful kitchen assistant. "
-                    "Give realistic recipes, sensible measurements, beginner-friendly "
-                    "steps, substitutions, and food-safety notes when relevant. "
-                    "Never invent that the user owns ingredients they did not list."
+                    "You are Chef AI, an expert cooking assistant. "
+                    "Create practical, accurate, delicious and "
+                    "beginner-friendly recipes. "
+                    "When JSON is requested, return valid JSON only."
                 ),
             },
-            {"role": "user", "content": prompt},
+            {
+                "role": "user",
+                "content": prompt,
+            },
         ],
+        "temperature": 0.4,
     }
 
-    response = requests.post(
-        XAI_URL,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=120,
-    )
-
-    if not response.ok:
-        try:
-            detail = response.json()
-        except Exception:
-            detail = response.text
-        raise RuntimeError(f"Grok API error ({response.status_code}): {detail}")
-
-    data = response.json()
-    text = extract_response_text(data)
-    if not text:
-        raise RuntimeError("Grok returned an empty response.")
-    return text
-
-
-def clean_json_text(text: str) -> str:
-    text = text.strip()
-    text = re.sub(r"^```json\s*", "", text, flags=re.I)
-    text = re.sub(r"^```\s*", "", text)
-    text = re.sub(r"\s*```$", "", text)
-    return text.strip()
-
-
-def call_grok_json(prompt: str) -> Dict[str, Any]:
-    text = call_grok(
-        prompt
-        + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown fences and no extra commentary."
-    )
-    cleaned = clean_json_text(text)
-
     try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        # Try to recover the first JSON object.
-        match = re.search(r"\{.*\}", cleaned, flags=re.S)
-        if match:
-            return json.loads(match.group(0))
-        raise RuntimeError("The AI returned an invalid JSON response. Please try again.")
 
-
-# -----------------------------
-# AI functions
-# -----------------------------
-def generate_recipe(dish: str, servings: int) -> Dict[str, Any]:
-    prompt = f"""
-Create a complete recipe for "{dish}" for exactly {servings} servings.
-
-Return this JSON structure:
-{{
-  "name": "string",
-  "description": "string",
-  "servings": {servings},
-  "prep_time": "string",
-  "cook_time": "string",
-  "total_time": "string",
-  "difficulty": "Easy | Medium | Hard",
-  "ingredients": [
-    {{"item": "string", "quantity": "string"}}
-  ],
-  "instructions": ["step 1", "step 2"],
-  "tips": ["tip 1", "tip 2"],
-  "substitutions": ["optional substitution"],
-  "serving_suggestions": ["suggestion"],
-  "food_safety": ["relevant safety note"]
-}}
-
-Requirements:
-- Scale ingredient quantities for exactly {servings} servings.
-- Use practical measurements.
-- Keep instructions clear for a beginner.
-- Do not add a fake rating.
-- If a dish name is ambiguous, choose the most common culinary interpretation.
-"""
-    result = call_grok_json(prompt)
-    result["servings"] = servings
-    return result
-
-
-def find_recipes(ingredients: List[str], servings: int) -> List[Dict[str, Any]]:
-    prompt = f"""
-The user has these ingredients:
-{", ".join(ingredients)}
-
-They want ideas for approximately {servings} servings.
-
-Suggest 6 practical dishes that use as many of the listed ingredients as reasonably
-possible. Recipes may have 1-4 missing ingredients, but clearly identify them.
-
-Return:
-{{
-  "recipes": [
-    {{
-      "name": "string",
-      "description": "short string",
-      "cooking_time": "string",
-      "difficulty": "Easy | Medium | Hard",
-      "uses": ["ingredients from user's list"],
-      "missing": ["important ingredients not in user's list"]
-    }}
-  ]
-}}
-
-Prioritize recipes by ingredient match. Do not suggest obviously incompatible combinations.
-"""
-    result = call_grok_json(prompt)
-    recipes = result.get("recipes", [])
-    return recipes if isinstance(recipes, list) else []
-
-
-# -----------------------------
-# Utility functions
-# -----------------------------
-def save_favorite(recipe: Dict[str, Any]) -> None:
-    name = recipe.get("name", "Recipe")
-    if not any(r.get("name") == name for r in st.session_state.favorites):
-        st.session_state.favorites.append(recipe)
-
-
-def render_recipe(recipe: Dict[str, Any], source: str = "") -> None:
-    st.markdown('<div class="recipe-box">', unsafe_allow_html=True)
-
-    st.markdown(
-        f'<div class="recipe-title">🍽️ {recipe.get("name", "Recipe")}</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        f'<div class="muted">{recipe.get("description", "")}</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.write("")
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Servings", recipe.get("servings", 4))
-    c2.metric("Prep", recipe.get("prep_time", "—"))
-    c3.metric("Cook", recipe.get("cook_time", "—"))
-    c4.metric("Difficulty", recipe.get("difficulty", "—"))
-
-    st.markdown("### 🧺 Ingredients")
-    ingredients = recipe.get("ingredients", [])
-    for idx, ing in enumerate(ingredients):
-        item = ing.get("item", "")
-        quantity = ing.get("quantity", "")
-        st.checkbox(
-            f"**{quantity}** — {item}",
-            key=f"ingredient_{id(recipe)}_{idx}",
+        response = requests.post(
+            GROQ_API_URL,
+            headers=headers,
+            json=payload,
+            timeout=90,
         )
 
-    st.markdown("### 👨‍🍳 Instructions")
-    for idx, step in enumerate(recipe.get("instructions", []), 1):
-        st.markdown(f"**{idx}.** {step}")
+    except requests.RequestException as error:
 
-    tips = recipe.get("tips", [])
-    if tips:
-        st.markdown("### 💡 Cooking Tips")
-        for tip in tips:
-            st.markdown(f"- {tip}")
+        raise RuntimeError(
+            f"Could not connect to Groq API: {error}"
+        )
 
-    substitutions = recipe.get("substitutions", [])
-    if substitutions:
-        st.markdown("### 🔄 Substitutions")
-        for item in substitutions:
-            st.markdown(f"- {item}")
+    if response.status_code != 200:
 
-    serving_suggestions = recipe.get("serving_suggestions", [])
-    if serving_suggestions:
-        st.markdown("### 🍴 Serving Suggestions")
-        for item in serving_suggestions:
-            st.markdown(f"- {item}")
+        try:
+            error_data = response.json()
 
-    safety = recipe.get("food_safety", [])
-    if safety:
-        st.markdown("### ⚠️ Food Safety")
-        for item in safety:
-            st.markdown(f"- {item}")
+            if isinstance(error_data, dict):
 
-    st.markdown("</div>", unsafe_allow_html=True)
+                if "error" in error_data:
+                    error_message = error_data["error"]
 
-    st.write("")
-    b1, b2, b3, b4 = st.columns(4)
+                else:
+                    error_message = error_data
 
-    if b1.button("❤️ Save Recipe", use_container_width=True, key=f"save_{id(recipe)}"):
-        save_favorite(recipe)
-        st.success("Recipe saved to Favorites.")
+            else:
+                error_message = error_data
 
-    if b2.button("🔄 Generate Again", use_container_width=True, key=f"again_{id(recipe)}"):
-        dish = recipe.get("name", st.session_state.last_dish)
-        with st.spinner("Chef AI is preparing your recipe..."):
-            try:
-                st.session_state.recipe = generate_recipe(
-                    dish, int(recipe.get("servings", st.session_state.last_servings))
-                )
-                st.rerun()
-            except Exception as exc:
-                st.error("Sorry, we couldn't generate your recipe right now. Please try again.")
-                st.caption(str(exc))
+        except Exception:
 
-    if b3.button("🖨️ Print Recipe", use_container_width=True, key=f"print_{id(recipe)}"):
-        st.info("Use your browser's Print command (Ctrl+P / Cmd+P) to print this recipe.")
+            error_message = response.text
 
-    if b4.button("📤 Share", use_container_width=True, key=f"share_{id(recipe)}"):
-        st.info("Share the recipe by copying the page URL or using your browser's share option.")
+        raise RuntimeError(
+            f"Groq API error {response.status_code}: "
+            f"{error_message}"
+        )
 
-    st.markdown("### 👥 Adjust Servings")
-    current = int(recipe.get("servings", 4))
-    a, b, c = st.columns([1, 2, 1])
-    if a.button("➖", key=f"minus_{id(recipe)}", use_container_width=True):
-        current = max(1, current - 1)
-    b.markdown(f"<h4 style='text-align:center'>{current} servings</h4>", unsafe_allow_html=True)
-    if c.button("➕", key=f"plus_{id(recipe)}", use_container_width=True):
-        current += 1
+    try:
 
-    if current != int(recipe.get("servings", 4)):
-        if st.button("Recalculate Ingredients", key=f"scale_{id(recipe)}"):
-            with st.spinner("Recalculating quantities..."):
-                try:
-                    new_recipe = generate_recipe(recipe.get("name", "Recipe"), current)
-                    st.session_state.recipe = new_recipe
-                    st.rerun()
-                except Exception as exc:
-                    st.error("Sorry, we couldn't recalculate the recipe. Please try again.")
-                    st.caption(str(exc))
+        data = response.json()
+
+        content = (
+            data["choices"][0]["message"]["content"]
+        )
+
+        if not content:
+            raise ValueError(
+                "Empty response from Groq."
+            )
+
+        return content
+
+    except Exception as error:
+
+        raise RuntimeError(
+            f"Unexpected Groq response: {error}"
+        )
 
 
-# -----------------------------
-# Sidebar navigation
-# -----------------------------
-with st.sidebar:
-    st.markdown("## 🍳 Chef AI")
-    page = st.radio(
-        "Navigation",
-        ["Home", "Find a Recipe", "Use My Ingredients", "Favorites"],
-        index=["Home", "Find a Recipe", "Use My Ingredients", "Favorites"].index(
-            st.session_state.page
-        ),
+# ============================================================
+# EXTRACT JSON
+# ============================================================
+
+def extract_json(text: str) -> Any:
+
+    text = text.strip()
+
+    # Remove markdown code fences
+    text = re.sub(
+        r"^```json\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
     )
-    st.session_state.page = page
 
-    st.divider()
-    st.caption("AI recipes powered by Grok through the xAI API.")
+    text = re.sub(
+        r"^```\s*",
+        "",
+        text,
+    )
+
+    text = re.sub(
+        r"\s*```$",
+        "",
+        text,
+    )
+
+    # Try direct JSON
+    try:
+
+        return json.loads(text)
+
+    except json.JSONDecodeError:
+        pass
+
+    # Try JSON object
+    object_start = text.find("{")
+    object_end = text.rfind("}")
+
+    if (
+        object_start != -1
+        and object_end != -1
+        and object_end > object_start
+    ):
+
+        candidate = text[
+            object_start:object_end + 1
+        ]
+
+        try:
+
+            return json.loads(candidate)
+
+        except json.JSONDecodeError:
+            pass
+
+    # Try JSON array
+    array_start = text.find("[")
+    array_end = text.rfind("]")
+
+    if (
+        array_start != -1
+        and array_end != -1
+        and array_end > array_start
+    ):
+
+        candidate = text[
+            array_start:array_end + 1
+        ]
+
+        try:
+
+            return json.loads(candidate)
+
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(
+        "The AI returned invalid JSON."
+    )
 
 
-# -----------------------------
-# Home
-# -----------------------------
-if st.session_state.page == "Home":
+# ============================================================
+# GENERATE COMPLETE RECIPE
+# ============================================================
+
+def generate_recipe(
+    dish: str,
+    servings: int,
+) -> Dict[str, Any]:
+
+    prompt = f"""
+Create a complete recipe for:
+
+Dish: {dish}
+
+Servings: {servings}
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{{
+    "name": "Recipe name",
+    "description": "Short appetizing description",
+    "servings": {servings},
+    "prep_time": "15 minutes",
+    "cook_time": "30 minutes",
+    "total_time": "45 minutes",
+    "difficulty": "Easy",
+    "ingredients": [
+        {{
+            "item": "ingredient name",
+            "quantity": "quantity",
+            "notes": "optional preparation note"
+        }}
+    ],
+    "steps": [
+        "First cooking step",
+        "Second cooking step",
+        "Third cooking step"
+    ],
+    "tips": [
+        "Useful cooking tip"
+    ],
+    "substitutions": [
+        {{
+            "original": "ingredient",
+            "replacement": "replacement"
+        }}
+    ],
+    "serving_suggestions": [
+        "Serving suggestion"
+    ],
+    "food_safety": [
+        "Food safety instruction"
+    ]
+}}
+
+Rules:
+
+1. Make the recipe for exactly {servings} servings.
+2. Use realistic ingredient quantities.
+3. Give clear beginner-friendly instructions.
+4. Include preparation time.
+5. Include cooking time.
+6. Include total time.
+7. Include difficulty.
+8. Include useful cooking tips.
+9. Include practical ingredient substitutions.
+10. Include serving suggestions.
+11. Include food safety advice.
+12. Do not use markdown.
+13. Return JSON only.
+"""
+
+    response = call_groq(prompt)
+
+    data = extract_json(response)
+
+    if not isinstance(data, dict):
+
+        raise ValueError(
+            "Recipe response was not a JSON object."
+        )
+
+    return data
+
+
+# ============================================================
+# FIND RECIPES FROM INGREDIENTS
+# ============================================================
+
+def find_recipes_from_ingredients(
+    ingredients: List[str],
+    servings: int,
+) -> List[Dict[str, Any]]:
+
+    ingredient_text = ", ".join(ingredients)
+
+    prompt = f"""
+The user has these ingredients:
+
+{ingredient_text}
+
+They want to cook for {servings} people.
+
+Suggest 6 realistic dishes they can make.
+
+Prioritize recipes that use the ingredients
+they already have.
+
+Return ONLY valid JSON using exactly:
+
+{{
+    "recipes": [
+        {{
+            "name": "Dish name",
+            "description": "Short description",
+            "match_percentage": 85,
+            "uses": [
+                "ingredient already available"
+            ],
+            "missing": [
+                "ingredient they may need"
+            ]
+        }}
+    ]
+}}
+
+Rules:
+
+1. Prioritize existing ingredients.
+2. Do not suggest unrealistic combinations.
+3. Give approximately 6 recipes.
+4. Show ingredients the user already has.
+5. Show ingredients they are missing.
+6. Match percentage should represent how well
+   their ingredients fit the recipe.
+7. Keep descriptions short.
+8. Do not use markdown.
+9. Return JSON only.
+"""
+
+    response = call_groq(prompt)
+
+    data = extract_json(response)
+
+    if isinstance(data, dict):
+
+        recipes = data.get(
+            "recipes",
+            [],
+        )
+
+    elif isinstance(data, list):
+
+        recipes = data
+
+    else:
+
+        recipes = []
+
+    return recipes
+
+
+# ============================================================
+# RENDER RECIPE
+# IMPORTANT:
+# This function is defined BEFORE it is called.
+# This fixes the NameError from your screenshot.
+# ============================================================
+
+def render_recipe(
+    recipe: Dict[str, Any]
+):
+
+    if not recipe:
+        return
+
+    st.markdown("---")
+
+    # --------------------------------------------------------
+    # Recipe title
+    # --------------------------------------------------------
+
+    recipe_name = recipe.get(
+        "name",
+        "Recipe",
+    )
+
     st.markdown(
-        """
-        <div class="hero">
-            <h1>🍳 Your AI Kitchen Assistant</h1>
-            <p>
-                Tell us what you want to cook or what ingredients you have.
-                Chef AI will help you decide what to make and create a complete recipe.
-            </p>
+        f"""
+        <div class="recipe-title">
+            {recipe_name}
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    left, right = st.columns(2)
+    # --------------------------------------------------------
+    # Description
+    # --------------------------------------------------------
 
-    with left:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <h3>🍲 What do you want to cook?</h3>
-                <p>Choose a dish and the number of people. Get a complete recipe with quantities, steps, tips and substitutions.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    description = recipe.get(
+        "description",
+        "",
+    )
+
+    if description:
+
+        st.write(description)
+
+    # --------------------------------------------------------
+    # Recipe information
+    # --------------------------------------------------------
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+
+        st.metric(
+            "Servings",
+            recipe.get(
+                "servings",
+                "-",
+            ),
         )
-        if st.button("Generate Recipe →", use_container_width=True, type="primary"):
-            st.session_state.page = "Find a Recipe"
+
+    with col2:
+
+        st.metric(
+            "Prep Time",
+            recipe.get(
+                "prep_time",
+                "-",
+            ),
+        )
+
+    with col3:
+
+        st.metric(
+            "Cook Time",
+            recipe.get(
+                "cook_time",
+                "-",
+            ),
+        )
+
+    with col4:
+
+        st.metric(
+            "Difficulty",
+            recipe.get(
+                "difficulty",
+                "-",
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Favorite
+    # --------------------------------------------------------
+
+    is_favorite = any(
+        favorite.get("name") == recipe_name
+        for favorite in st.session_state.favorites
+    )
+
+    if is_favorite:
+
+        if st.button(
+            "💔 Remove from Favorites",
+            use_container_width=True,
+        ):
+
+            st.session_state.favorites = [
+                favorite
+                for favorite
+                in st.session_state.favorites
+                if favorite.get("name") != recipe_name
+            ]
+
+            st.success(
+                "Recipe removed from favorites."
+            )
+
             st.rerun()
 
-    with right:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <h3>🧺 What do you have in your kitchen?</h3>
-                <p>Enter your available ingredients and discover practical dishes you can make with them.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if st.button("Find Recipes →", use_container_width=True):
-            st.session_state.page = "Use My Ingredients"
-            st.rerun()
-
-    st.write("")
-    st.markdown("### ✨ How it works")
-    x1, x2, x3 = st.columns(3)
-    x1.markdown("**1. Tell us**  \nEnter a dish or your available ingredients.")
-    x2.markdown("**2. Chef AI thinks**  \nGrok analyzes servings, ingredients and recipe options.")
-    x3.markdown("**3. Start cooking**  \nFollow the clear, step-by-step recipe.")
-
-# -----------------------------
-# Find a Recipe
-# -----------------------------
-elif st.session_state.page == "Find a Recipe":
-    st.title("🍲 What do you want to cook?")
-    st.write("Tell Chef AI the dish and how many people you're cooking for.")
-
-    dish = st.text_input(
-        "Dish name",
-        value=st.session_state.last_dish,
-        placeholder="e.g. Chicken Biryani",
-    )
-    servings = st.number_input(
-        "Number of people / servings",
-        min_value=1,
-        max_value=100,
-        value=int(st.session_state.last_servings),
-        step=1,
-    )
-
-    if st.button("✨ Generate Recipe", type="primary", use_container_width=True):
-        if not dish.strip():
-            st.warning("Please enter a dish name.")
-        elif servings < 1:
-            st.warning("Please select at least 1 serving.")
-        else:
-            st.session_state.last_dish = dish.strip()
-            st.session_state.last_servings = int(servings)
-
-            with st.spinner("Chef AI is preparing your recipe..."):
-                try:
-                    st.session_state.recipe = generate_recipe(dish.strip(), int(servings))
-                    st.rerun()
-                except Exception as exc:
-                    st.error("Sorry, we couldn't generate your recipe right now. Please try again.")
-                    st.caption(str(exc))
-
-    if st.session_state.recipe:
-        render_recipe(st.session_state.recipe)
-
-# -----------------------------
-# Use My Ingredients
-# -----------------------------
-elif st.session_state.page == "Use My Ingredients":
-    st.title("🧺 What can I cook with what I have?")
-    st.write("Enter the ingredients currently available in your kitchen.")
-
-    ingredients_text = st.text_area(
-        "Your ingredients",
-        value=st.session_state.last_ingredients,
-        placeholder="chicken, onion, tomato, potato, rice, garlic, ginger",
-        height=110,
-    )
-    servings = st.number_input(
-        "How many people?",
-        min_value=1,
-        max_value=100,
-        value=int(st.session_state.last_servings),
-        step=1,
-    )
-
-    ingredients = [
-        item.strip()
-        for item in ingredients_text.split(",")
-        if item.strip()
-    ]
-
-    if ingredients:
-        st.markdown("**Your ingredients:**")
-        chip_cols = st.columns(min(len(ingredients), 5))
-        for i, ingredient in enumerate(ingredients):
-            chip_cols[i % len(chip_cols)].markdown(f"`{ingredient}`")
-
-    if st.button("🔎 Find Recipes", type="primary", use_container_width=True):
-        if not ingredients:
-            st.warning("Please enter at least one ingredient.")
-        else:
-            st.session_state.last_ingredients = ingredients_text
-            st.session_state.last_servings = int(servings)
-
-            with st.spinner("Chef AI is finding dishes you can make..."):
-                try:
-                    st.session_state.suggestions = find_recipes(ingredients, int(servings))
-                    st.rerun()
-                except Exception as exc:
-                    st.error("Sorry, we couldn't find recipes right now. Please try again.")
-                    st.caption(str(exc))
-
-    if st.session_state.suggestions:
-        st.markdown("### 🍽️ You can make...")
-        for i, suggestion in enumerate(st.session_state.suggestions):
-            st.markdown('<div class="suggestion-card">', unsafe_allow_html=True)
-            st.markdown(f"### {suggestion.get('name', 'Recipe')}")
-            st.write(suggestion.get("description", ""))
-
-            m1, m2 = st.columns(2)
-            m1.write(f"**Time:** {suggestion.get('cooking_time', '—')}")
-            m2.write(f"**Difficulty:** {suggestion.get('difficulty', '—')}")
-
-            uses = suggestion.get("uses", [])
-            missing = suggestion.get("missing", [])
-
-            if uses:
-                st.markdown(
-                    '<span class="available"><b>Uses:</b> '
-                    + ", ".join(uses)
-                    + "</span>",
-                    unsafe_allow_html=True,
-                )
-
-            if missing:
-                st.markdown(
-                    '<span class="missing"><b>Missing:</b> '
-                    + ", ".join(missing)
-                    + "</span>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown('<span class="available"><b>You have everything important.</b></span>', unsafe_allow_html=True)
-
-            if st.button("View Recipe", key=f"view_{i}", use_container_width=True):
-                with st.spinner("Chef AI is preparing your recipe..."):
-                    try:
-                        st.session_state.recipe = generate_recipe(
-                            suggestion.get("name", "Recipe"), int(servings)
-                        )
-                        st.session_state.page = "Find a Recipe"
-                        st.rerun()
-                    except Exception as exc:
-                        st.error("Sorry, we couldn't generate that recipe right now. Please try again.")
-                        st.caption(str(exc))
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-# -----------------------------
-# Favorites
-# -----------------------------
-elif st.session_state.page == "Favorites":
-    st.title("❤️ Favorites")
-
-    if not st.session_state.favorites:
-        st.info("You haven't saved any recipes yet. Generate a recipe and click “Save Recipe”.")
     else:
-        for i, recipe in enumerate(st.session_state.favorites):
-            with st.expander(f"🍽️ {recipe.get('name', 'Recipe')} — {recipe.get('servings', '—')} servings"):
-                st.write(recipe.get("description", ""))
-                st.write(
-                    f"**Prep:** {recipe.get('prep_time', '—')}  |  "
-                    f"**Cook:** {recipe.get('cook_time', '—')}  |  "
-                    f"**Difficulty:** {recipe.get('difficulty', '—')}"
-                )
-                c1, c2 = st.columns(2)
-                if c1.button("Open Recipe", key=f"openfav_{i}", use_container_width=True):
-                    st.session_state.recipe = recipe
-                    st.session_state.page = "Find a Recipe"
-                    st.rerun()
-                if c2.button("Remove", key=f"removefav_{i}", use_container_width=True):
-                    st.session_state.favorites.pop(i)
-                    st.rerun()
 
+        if st.button(
+            "❤️ Save to Favorites",
+            use_container_width=True,
+        ):
+
+            st.session_state.favorites.append(
+                recipe
+            )
+
+            st.success(
+                "Recipe saved to favorites!"
+            )
+
+    # --------------------------------------------------------
+    # Ingredients
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">'
+        '🧺 Ingredients'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    ingredients = recipe.get(
+        "ingredients",
+        [],
+    )
+
+    if not ingredients:
+
+        st.write(
+            "No ingredients were returned."
+        )
+
+    for ingredient in ingredients:
+
+        if isinstance(
+            ingredient,
+            dict,
+        ):
+
+            item = ingredient.get(
+                "item",
+                "",
+            )
+
+            quantity = ingredient.get(
+                "quantity",
+                "",
+            )
+
+            notes = ingredient.get(
+                "notes",
+                "",
+            )
+
+            ingredient_text = (
+                f"<strong>{quantity}</strong> "
+                f"{item}"
+            )
+
+            if notes:
+
+                ingredient_text += (
+                    f" — {notes}"
+                )
+
+            st.markdown(
+                f"""
+                <div class="ingredient-row">
+                    {ingredient_text}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+
+            st.markdown(
+                f"""
+                <div class="ingredient-row">
+                    {ingredient}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # --------------------------------------------------------
+    # Instructions
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">'
+        '👨‍🍳 Instructions'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    steps = recipe.get(
+        "steps",
+        [],
+    )
+
+    if not steps:
+
+        st.write(
+            "No instructions were returned."
+        )
+
+    for index, step in enumerate(
+        steps,
+        start=1,
+    ):
+
+        st.markdown(
+            f"""
+            <div class="step-box">
+                <span class="step-number">
+                    Step {index}
+                </span>
+                <br>
+                {step}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # --------------------------------------------------------
+    # Tips
+    # --------------------------------------------------------
+
+    tips = recipe.get(
+        "tips",
+        [],
+    )
+
+    if tips:
+
+        st.markdown(
+            '<div class="section-title">'
+            '💡 Cooking Tips'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        for tip in tips:
+
+            st.write(
+                f"• {tip}"
+            )
+
+    # --------------------------------------------------------
+    # Substitutions
+    # --------------------------------------------------------
+
+    substitutions = recipe.get(
+        "substitutions",
+        [],
+    )
+
+    if substitutions:
+
+        st.markdown(
+            '<div class="section-title">'
+            '🔄 Substitutions'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        for substitution in substitutions:
+
+            if isinstance(
+                substitution,
+                dict,
+            ):
+
+                original = substitution.get(
+                    "original",
+                    "",
+                )
+
+                replacement = substitution.get(
+                    "replacement",
+                    "",
+                )
+
+                st.write(
+                    f"**{original} → {replacement}**"
+                )
+
+            else:
+
+                st.write(
+                    f"• {substitution}"
+                )
+
+    # --------------------------------------------------------
+    # Serving suggestions
+    # --------------------------------------------------------
+
+    serving_suggestions = recipe.get(
+        "serving_suggestions",
+        [],
+    )
+
+    if serving_suggestions:
+
+        st.markdown(
+            '<div class="section-title">'
+            '🍽️ Serving Suggestions'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        for suggestion in serving_suggestions:
+
+            st.write(
+                f"• {suggestion}"
+            )
+
+    # --------------------------------------------------------
+    # Food safety
+    # --------------------------------------------------------
+
+    food_safety = recipe.get(
+        "food_safety",
+        [],
+    )
+
+    if food_safety:
+
+        st.markdown(
+            '<div class="section-title">'
+            '🛡️ Food Safety'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        for safety in food_safety:
+
+            st.write(
+                f"• {safety}"
+            )
+
+    # --------------------------------------------------------
+    # Print/share
+    # --------------------------------------------------------
+
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.info(
+            "🖨️ To print this recipe, "
+            "use your browser's Print option."
+        )
+
+    with col2:
+
+        st.info(
+            "🔗 You can share this page "
+            "using your browser's share/copy link option."
+        )
+
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+with st.sidebar:
+
+    st.markdown(
+        "## 🍳 Chef AI"
+    )
+
+    st.caption(
+        "Your smart kitchen assistant"
+    )
+
+    st.divider()
+
+    selected_page = st.radio(
+        "Menu",
+        [
+            "Home",
+            "Find a Recipe",
+            "Use My Ingredients",
+            "Favorites",
+        ],
+        index=[
+            "Home",
+            "Find a Recipe",
+            "Use My Ingredients",
+            "Favorites",
+        ].index(
+            st.session_state.page
+        ),
+    )
+
+    st.session_state.page = selected_page
+
+    st.divider()
+
+    st.caption(
+        "Powered by Groq API"
+    )
+
+
+# ============================================================
+# MAIN HEADER
+# ============================================================
 
 st.markdown(
-    '<div class="footer">Chef AI • Streamlit • Grok via xAI</div>',
+    '<div class="main-title">🍳 Chef AI</div>',
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="main-subtitle">'
+    'Turn your ideas and ingredients into delicious recipes.'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
+# HOME PAGE
+# ============================================================
+
+if st.session_state.page == "Home":
+
+    st.markdown(
+        """
+        <div class="recipe-card">
+
+            <h2>What would you like to cook?</h2>
+
+            <p>
+                Tell Chef AI what you want to eat,
+                or enter the ingredients already
+                available in your kitchen.
+            </p>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        if st.button(
+            "🍲 Find a Recipe",
+            use_container_width=True,
+            type="primary",
+        ):
+
+            st.session_state.page = "Find a Recipe"
+
+            st.rerun()
+
+    with col2:
+
+        if st.button(
+            "🥕 Use My Ingredients",
+            use_container_width=True,
+        ):
+
+            st.session_state.page = "Use My Ingredients"
+
+            st.rerun()
+
+
+# ============================================================
+# FIND A RECIPE PAGE
+# ============================================================
+
+elif st.session_state.page == "Find a Recipe":
+
+    st.markdown(
+        "## 🍲 Find a Recipe"
+    )
+
+    st.write(
+        "Enter any dish and Chef AI will create "
+        "a complete recipe for you."
+    )
+
+    dish = st.text_input(
+        "What do you want to cook?",
+        placeholder="Example: Chicken Biryani",
+    )
+
+    servings = st.number_input(
+        "Number of servings",
+        min_value=1,
+        max_value=50,
+        value=3,
+        step=1,
+    )
+
+    if st.button(
+        "✨ Generate Recipe",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        if not dish.strip():
+
+            st.warning(
+                "Please enter a dish name."
+            )
+
+        else:
+
+            with st.spinner(
+                "Chef AI is preparing your recipe..."
+            ):
+
+                try:
+
+                    recipe = generate_recipe(
+                        dish.strip(),
+                        int(servings),
+                    )
+
+                    st.session_state.recipe = recipe
+
+                except Exception as error:
+
+                    st.error(
+                        f"Sorry, we couldn't generate "
+                        f"the recipe.\n\n{error}"
+                    )
+
+    if st.session_state.recipe:
+
+        render_recipe(
+            st.session_state.recipe
+        )
+
+
+# ============================================================
+# USE MY INGREDIENTS PAGE
+# ============================================================
+
+elif st.session_state.page == "Use My Ingredients":
+
+    st.markdown(
+        "## 🥕 Use My Ingredients"
+    )
+
+    st.write(
+        "Enter the ingredients you already have "
+        "and Chef AI will suggest dishes."
+    )
+
+    ingredients_text = st.text_area(
+        "What ingredients do you have?",
+        placeholder=(
+            "Example: chicken, onion, butter, "
+            "garlic, rice"
+        ),
+        height=120,
+    )
+
+    servings = st.number_input(
+        "Number of servings",
+        min_value=1,
+        max_value=50,
+        value=3,
+        step=1,
+        key="ingredient_servings",
+    )
+
+    if st.button(
+        "🔎 Find Recipes",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        if not ingredients_text.strip():
+
+            st.warning(
+                "Please enter at least one ingredient."
+            )
+
+        else:
+
+            ingredients = [
+                item.strip()
+                for item in ingredients_text.split(",")
+                if item.strip()
+            ]
+
+            with st.spinner(
+                "Finding recipes from your ingredients..."
+            ):
+
+                try:
+
+                    recipes = find_recipes_from_ingredients(
+                        ingredients,
+                        int(servings),
+                    )
+
+                    st.session_state.suggestions = recipes
+
+                except Exception as error:
+
+                    st.error(
+                        f"Sorry, we couldn't find recipes "
+                        f"right now.\n\n{error}"
+                    )
+
+    suggestions = (
+        st.session_state.suggestions
+    )
+
+    if suggestions:
+
+        st.markdown(
+            "### 🍽️ Recipes You Can Make"
+        )
+
+        for index, suggestion in enumerate(
+            suggestions
+        ):
+
+            name = suggestion.get(
+                "name",
+                "Untitled Recipe",
+            )
+
+            description = suggestion.get(
+                "description",
+                "",
+            )
+
+            match_percentage = suggestion.get(
+                "match_percentage",
+                "",
+            )
+
+            uses = suggestion.get(
+                "uses",
+                [],
+            )
+
+            missing = suggestion.get(
+                "missing",
+                [],
+            )
+
+            with st.container(
+                border=True
+            ):
+
+                st.markdown(
+                    f"### 🍽️ {name}"
+                )
+
+                if description:
+
+                    st.write(
+                        description
+                    )
+
+                if match_percentage != "":
+
+                    st.write(
+                        f"🟢 Ingredient match: "
+                        f"**{match_percentage}%**"
+                    )
+
+                if uses:
+
+                    st.write(
+                        "**You already have:** "
+                        + ", ".join(
+                            str(item)
+                            for item in uses
+                        )
+                    )
+
+                if missing:
+
+                    st.write(
+                        "**You may need:** "
+                        + ", ".join(
+                            str(item)
+                            for item in missing
+                        )
+                    )
+
+                if st.button(
+                    "🍳 Make This Recipe",
+                    key=f"make_recipe_{index}",
+                    use_container_width=True,
+                ):
+
+                    with st.spinner(
+                        f"Creating {name}..."
+                    ):
+
+                        try:
+
+                            recipe = generate_recipe(
+                                name,
+                                int(servings),
+                            )
+
+                            st.session_state.recipe = recipe
+
+                            st.session_state.page = (
+                                "Find a Recipe"
+                            )
+
+                            st.rerun()
+
+                        except Exception as error:
+
+                            st.error(
+                                f"Could not generate "
+                                f"the recipe.\n\n{error}"
+                            )
+
+
+# ============================================================
+# FAVORITES PAGE
+# ============================================================
+
+elif st.session_state.page == "Favorites":
+
+    st.markdown(
+        "## ❤️ Favorites"
+    )
+
+    favorites = (
+        st.session_state.favorites
+    )
+
+    if not favorites:
+
+        st.info(
+            "You don't have any saved recipes yet."
+        )
+
+        st.write(
+            "Generate a recipe and click "
+            "\"Save to Favorites\"."
+        )
+
+    else:
+
+        for index, recipe in enumerate(
+            favorites
+        ):
+
+            recipe_name = recipe.get(
+                "name",
+                "Recipe",
+            )
+
+            with st.container(
+                border=True
+            ):
+
+                st.markdown(
+                    f"### 🍽️ {recipe_name}"
+                )
+
+                if st.button(
+                    "View Recipe",
+                    key=f"view_favorite_{index}",
+                    use_container_width=True,
+                ):
+
+                    st.session_state.recipe = recipe
+
+                    st.session_state.page = (
+                        "Find a Recipe"
+                    )
+
+                    st.rerun()
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown(
+    """
+    <div class="app-footer">
+        Chef AI • Streamlit • Groq API
+    </div>
+    """,
     unsafe_allow_html=True,
 )
