@@ -39,6 +39,7 @@ st.markdown(
     /* Main application */
     .stApp {
         background-color: #fffaf4;
+        color: #3b2418;
     }
 
     /* Main content */
@@ -70,6 +71,7 @@ st.markdown(
         padding: 25px;
         margin-bottom: 20px;
         box-shadow: 0 4px 18px rgba(60, 40, 25, 0.06);
+        color: #3b2418;
     }
 
     /* Recipe title */
@@ -94,6 +96,7 @@ st.markdown(
         background: #fffdf9;
         border-bottom: 1px solid #eee4db;
         padding: 11px 5px;
+        color: #3b2418;
     }
 
     /* Instruction step */
@@ -103,6 +106,7 @@ st.markdown(
         border-radius: 12px;
         padding: 15px;
         margin-bottom: 12px;
+        color: #3b2418;
     }
 
     .step-number {
@@ -117,6 +121,7 @@ st.markdown(
         border-radius: 16px;
         padding: 20px;
         margin-bottom: 15px;
+        color: #3b2418;
     }
 
     /* Info boxes */
@@ -125,6 +130,7 @@ st.markdown(
         border-radius: 12px;
         padding: 15px;
         margin: 10px 0;
+        color: #3b2418;
     }
 
     /* Footer */
@@ -133,6 +139,26 @@ st.markdown(
         color: #927e70;
         font-size: 14px;
         padding: 30px 0 10px 0;
+    }
+
+    /*
+    FIX: force a readable text color inside every card/box element
+    and any children they contain. Without this, Streamlit Cloud's
+    default (dark) theme text color (near-white) gets inherited
+    inside these light-background boxes, making the text nearly
+    invisible even though the background renders correctly.
+    */
+    .recipe-card, .suggestion-card, .info-box,
+    .ingredient-row, .step-box {
+        color: #3b2418 !important;
+    }
+    .recipe-card *, .suggestion-card *, .info-box *,
+    .ingredient-row *, .step-box * {
+        color: #3b2418 !important;
+    }
+    /* keep the red step numbers red even with the rule above */
+    .step-number {
+        color: #d3543f !important;
     }
 
     /* Mobile */
